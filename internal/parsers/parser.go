@@ -10,7 +10,7 @@ type PlaylistParser interface {
 func GetParser(playlist string) PlaylistParser {
 	switch filepath.Ext(playlist) {
 	case ".xml":
-		return NewRhythmDBParser()
+		return NewRhythmboxParser()
 	case ".pls":
 		return NewPlsParser()
 	default:

@@ -7,22 +7,22 @@ import (
 	"os"
 )
 
-type RhythmDBPlaylists struct {
-	Playlists []RhythmDBPlaylist `xml:"playlist"`
+type RhythmboxPlaylists struct {
+	Playlists []RhythmboxPlaylist `xml:"playlist"`
 }
 
-type RhythmDBPlaylist struct {
+type RhythmboxPlaylist struct {
 	Name      string   `xml:"name,attr"`
 	Locations []string `xml:"location"`
 }
 
-type RhythmDBParser struct{}
+type RhythmboxParser struct{}
 
-func NewRhythmDBParser() PlaylistParser {
-	return RhythmDBParser{}
+func NewRhythmboxParser() PlaylistParser {
+	return RhythmboxParser{}
 }
 
-func (p RhythmDBParser) ParsePlaylist(playlistPath string) (map[string][]string, error) {
+func (p RhythmboxParser) ParsePlaylist(playlistPath string) (map[string][]string, error) {
 	playlistFile, err := os.Open(playlistPath)
 	if err != nil {
 		return nil, err
@@ -34,7 +34,7 @@ func (p RhythmDBParser) ParsePlaylist(playlistPath string) (map[string][]string,
 		return nil, err
 	}
 
-	var playlists RhythmDBPlaylists
+	var playlists RhythmboxPlaylists
 	err = xml.Unmarshal(playlistRaw, &playlists)
 	if err != nil {
 		return nil, err

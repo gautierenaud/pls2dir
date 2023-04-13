@@ -16,7 +16,7 @@ var ListCmd = &cobra.Command{
 }
 
 func list(cmd *cobra.Command, args []string) error {
-	p := parsers.NewRhythmDBParser()
+	p := parsers.NewRhythmboxParser()
 
 	playlists, err := p.ParsePlaylist(PlaylistPath)
 	if err != nil {

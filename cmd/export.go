@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"log"
@@ -88,7 +86,12 @@ func exportPlaylist(cmd *cobra.Command, args []string) error {
 	log.Printf("Export %d files to %s\n", len(files), destination)
 
 	bar := progressbar.Default(int64(len(files)))
-	var skipped []string
+	var skippedFiles []string
+	type erroredFile struct {
+		file string
+		err  error
+	}
+	var erroredFiles []erroredFile
 
 	// TODO: use a io.TeeReader to put source's content in RAM only once
 	for _, file := range files {
@@ -103,46 +106,60 @@ func exportPlaylist(cmd *cobra.Command, args []string) error {
 
 		destinationPath := path.Join(destinationFolder, filename)
 
-		export, err := ShouldExport(file, destinationPath)
+		export, err := shouldExport(file, destinationPath)
 		if err != nil {
-			return err
+			erroredFiles = append(erroredFiles, erroredFile{filename, err})
+			continue
 		}
 
 		if !export {
-			skipped = append(skipped, filename)
+			skippedFiles = append(skippedFiles, filename)
 			continue
 		}
 
 		err = os.MkdirAll(destinationFolder, os.ModePerm)
 		if err != nil {
-			skipped = append(skipped, filename)
-			continue
+			log.Printf("aaaaaaaa: %s\n", err)
+			erroredFiles = append(erroredFiles, erroredFile{filename, err})
+			// continue
 		}
 
 		source, err := os.Open(file)
 		if err != nil {
-			return err
+			erroredFiles = append(erroredFiles, erroredFile{filename, err})
+			continue
 		}
 		defer source.Close()
 
 		destination, err := os.Create(destinationPath)
 		if err != nil {
-			return err
+			erroredFiles = append(erroredFiles, erroredFile{filename, err})
+			continue
 		}
 		defer destination.Close()
 
 		_, err = io.Copy(destination, source)
 		if err != nil {
-			return err
+			erroredFiles = append(erroredFiles, erroredFile{filename, err})
+			continue
 		}
 	}
 
-	log.Printf("%d files where skipped: %s\n", len(skipped), strings.Join(skipped, ","))
+	if len(skippedFiles) > 0 {
+		log.Printf("%d files skipped\n", len(skippedFiles))
+	}
+
+	if len(erroredFiles) > 0 {
+		log.Printf("%d files skipped due to error:\n", len(erroredFiles))
+		for _, erroredFile := range erroredFiles {
+			log.Printf("* %s: %s\n", erroredFile.file, erroredFile.err)
+		}
+	}
 
 	return nil
 }
 
-func ShouldExport(source, dest string) (bool, error) {
+func shouldExport(source, dest string) (bool, error) {
 	sourceStat, err := os.Stat(source)
 	if err != nil {
 		return false, err
@@ -159,35 +176,7 @@ func ShouldExport(source, dest string) (bool, error) {
 		return true, nil
 	}
 
+	// checking for the sha256 took too much time
+
 	return false, nil
-
-	sourceFile, err := os.Open(source)
-	if err != nil {
-		return false, err
-	}
-	defer sourceFile.Close()
-
-	sourceHash := sha256.New()
-	_, err = io.Copy(sourceHash, sourceFile)
-	if err != nil {
-		return false, err
-	}
-
-	destFile, err := os.Open(dest)
-	if err != nil {
-		return false, err
-	}
-	defer destFile.Close()
-
-	destHash := sha256.New()
-	_, err = io.Copy(destHash, destFile)
-	if err != nil {
-		return false, err
-	}
-
-	if hex.EncodeToString(sourceHash.Sum(nil)) == hex.EncodeToString(destHash.Sum(nil)) {
-		return false, nil
-	}
-
-	return true, nil
 }

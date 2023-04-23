@@ -2,6 +2,7 @@ package parsers
 
 import (
 	"net/url"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -20,6 +21,8 @@ func (p PlsParser) ParsePlaylist(playlistPath string) (map[string][]string, erro
 		return nil, err
 	}
 
+	playlistDir := path.Dir(playlistPath)
+
 	res := make(map[string][]string)
 	name := strings.TrimSuffix(filepath.Base(playlistPath), filepath.Ext(playlistPath))
 	for _, key := range cfg.Section("playlist").KeyStrings() {
@@ -29,8 +32,19 @@ func (p PlsParser) ParsePlaylist(playlistPath string) (map[string][]string, erro
 				// should never happen
 				continue
 			}
-			u, _ := url.ParseRequestURI(val.MustString(""))
-			res[name] = append(res[name], u.Path)
+
+			rawPath := val.MustString("")
+
+			var filepath string
+			// when the file is in another drive, it might start with "file://"
+			u, err := url.ParseRequestURI(rawPath)
+			if err != nil {
+				filepath = path.Join(playlistDir, rawPath)
+			} else {
+				filepath = u.Path
+			}
+
+			res[name] = append(res[name], filepath)
 		}
 	}
 
